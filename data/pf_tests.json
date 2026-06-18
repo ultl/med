@@ -1,0 +1,63 @@
+[
+  {
+    "id": "EN01_basic_name",
+    "note": "Model card example",
+    "input": "My name is Alice Smith",
+    "expected": {"private_person": ["Alice Smith"]}
+  },
+  {
+    "id": "EN02_all_types",
+    "note": "Email signature with many PII types",
+    "input": "Hi, I'm John Carter from Globex Corporation. Reach me at john.carter@globex.com or +1-415-555-0199. Office: 1 Market St, San Francisco, CA 94105. Visit https://globex.com. Acct #4012-8888-1881.",
+    "expected": {
+      "private_person": ["John Carter"],
+      "private_email": ["john.carter@globex.com"],
+      "private_phone": ["+1-415-555-0199"],
+      "private_address": ["1 Market St, San Francisco, CA 94105"],
+      "private_url": ["https://globex.com"],
+      "account_number": ["4012-8888-1881"]
+    }
+  },
+  {
+    "id": "EN03_date_secret",
+    "note": "Dates and secrets (categories LFM2 lacks)",
+    "input": "Born on March 3, 1990. The API key is sk-live-9f8a7b6c5d4e3f2a1b0c and the password is hunter2.",
+    "expected": {
+      "private_date": ["March 3, 1990"],
+      "secret": ["sk-live-9f8a7b6c5d4e3f2a1b0c", "hunter2"]
+    }
+  },
+  {
+    "id": "EN04_no_pii",
+    "note": "Robustness: no PII",
+    "input": "The quarterly meeting will cover next year's sales strategy and product roadmap.",
+    "expected": {}
+  },
+  {
+    "id": "EN05_underscore_email",
+    "note": "The exact string LFM2 truncated (watanabe_shota@example.com)",
+    "input": "Contact watanabe_shota@example.com or the backup tanaka@example.com.",
+    "expected": {"private_email": ["watanabe_shota@example.com", "tanaka@example.com"]}
+  },
+  {
+    "id": "JP01_mixed",
+    "note": "Japanese mixed with Latin brand (the LFM2 Globex->Gobex case)",
+    "input": "弊社 Globex Japan株式会社 の山田です。連絡先は jcarter@globex.com、電話 +1-415-555-0199。",
+    "expected": {
+      "private_person": ["山田"],
+      "private_email": ["jcarter@globex.com"],
+      "private_phone": ["+1-415-555-0199"]
+    }
+  },
+  {
+    "id": "JP02_business",
+    "note": "Japanese business signature (LFM2 handled this perfectly)",
+    "input": "株式会社ミドリ商事 営業部の佐藤健一です。sato.kenichi@midori-shoji.co.jp、TEL 03-1234-5678、東京都渋谷区神宮前4-5-6。",
+    "expected": {
+      "private_person": ["佐藤健一"],
+      "private_email": ["sato.kenichi@midori-shoji.co.jp"],
+      "private_phone": ["03-1234-5678"],
+      "private_address": ["東京都渋谷区神宮前4-5-6"]
+    }
+  }
+]

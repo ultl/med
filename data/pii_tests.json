@@ -1,0 +1,179 @@
+[
+  {
+    "id": "01_modelcard_example",
+    "note": "Reproduce the model card's own example (names + company + address)",
+    "system": "Extract <address>, <company_name>, <email_address>, <human_name>, <phone_number>",
+    "input": "田中　太郎 様\n平素より格別のご高配を賜り、誠にありがとうございます。\nこのたび、山田　花子 が ABCコーポレーション赤坂オフィス へ ご招待いたしました。\n場所: 東京都港区赤坂1-2-3 赤坂ビジネスタワー5階",
+    "expected": {
+      "address": ["東京都港区赤坂1-2-3 赤坂ビジネスタワー5階"],
+      "company_name": ["ABCコーポレーション赤坂オフィス"],
+      "email_address": [],
+      "human_name": ["田中　太郎", "山田　花子"],
+      "phone_number": []
+    }
+  },
+  {
+    "id": "02_email_phone_inline",
+    "note": "Model card direct-loading example: name + email + phone inline",
+    "system": "Extract <address>, <company_name>, <email_address>, <human_name>, <phone_number>",
+    "input": "こんにちは、ラミンさんに連絡先は celegans@liquid.ai (電話番号010-000-0000) です。",
+    "expected": {
+      "address": [],
+      "company_name": [],
+      "email_address": ["celegans@liquid.ai"],
+      "human_name": ["ラミン"],
+      "phone_number": ["010-000-0000"]
+    }
+  },
+  {
+    "id": "03_all_categories",
+    "note": "All five categories present in a realistic business signature",
+    "system": "Extract <address>, <company_name>, <email_address>, <human_name>, <phone_number>",
+    "input": "株式会社ミドリ商事 営業部の佐藤健一です。\nご用件は鈴木様あてに sato.kenichi@midori-shoji.co.jp までご連絡ください。\nオフィス: 〒150-0001 東京都渋谷区神宮前4-5-6 神宮前タワー12階\nTEL: 03-1234-5678 / 携帯: 090-8765-4321",
+    "expected": {
+      "address": ["〒150-0001 東京都渋谷区神宮前4-5-6 神宮前タワー12階"],
+      "company_name": ["株式会社ミドリ商事"],
+      "email_address": ["sato.kenichi@midori-shoji.co.jp"],
+      "human_name": ["佐藤健一", "鈴木"],
+      "phone_number": ["03-1234-5678", "090-8765-4321"]
+    }
+  },
+  {
+    "id": "04_no_pii",
+    "note": "Robustness: no PII at all — every list should be empty",
+    "system": "Extract <address>, <company_name>, <email_address>, <human_name>, <phone_number>",
+    "input": "本日は晴天なり。明日の会議は午後3時に開始し、議題は来期の販売計画についてです。",
+    "expected": {
+      "address": [],
+      "company_name": [],
+      "email_address": [],
+      "human_name": [],
+      "phone_number": []
+    }
+  },
+  {
+    "id": "05_multiple_phones_formats",
+    "note": "Several phone number formats incl. +81 and hyphenless; FAX accepted as phone",
+    "system": "Extract <address>, <company_name>, <email_address>, <human_name>, <phone_number>",
+    "input": "お問い合わせは +81-90-1234-5678 もしくは 0120-000-111、FAX 0648001234 までお願いします。担当: 高橋",
+    "expected": {
+      "address": [],
+      "company_name": [],
+      "email_address": [],
+      "human_name": ["高橋"],
+      "phone_number": ["+81-90-1234-5678", "0120-000-111", "0648001234"]
+    }
+  },
+  {
+    "id": "06_selective_human_name_only",
+    "note": "Selective extraction: system prompt restricted to human_name only",
+    "system": "Extract <human_name>",
+    "input": "山本由美と中村大輔は、株式会社ABC（東京都新宿区西新宿2-8-1）の担当者 info@abc.co.jp です。電話 03-9999-0000。",
+    "expected": {
+      "human_name": ["山本由美", "中村大輔"]
+    }
+  },
+  {
+    "id": "07_selective_address_company",
+    "note": "Selective extraction: address + company_name only (alphabetical)",
+    "system": "Extract <address>, <company_name>",
+    "input": "山本由美と中村大輔は、株式会社ABC（東京都新宿区西新宿2-8-1）の担当者 info@abc.co.jp です。電話 03-9999-0000。",
+    "expected": {
+      "address": ["東京都新宿区西新宿2-8-1"],
+      "company_name": ["株式会社ABC"]
+    }
+  },
+  {
+    "id": "08_fullwidth_and_dup_emails",
+    "note": "Full-width name spacing + two near-duplicate emails (known weak spot)",
+    "system": "Extract <address>, <company_name>, <email_address>, <human_name>, <phone_number>",
+    "input": "契約者: 渡辺　翔太（わたなべ しょうた）。連絡先メール watanabe_shota@example.com、予備 watanabe.shota@example.com。",
+    "expected": {
+      "address": [],
+      "company_name": [],
+      "email_address": ["watanabe_shota@example.com", "watanabe.shota@example.com"],
+      "human_name": ["渡辺　翔太"],
+      "phone_number": []
+    }
+  },
+  {
+    "id": "09_long_contract",
+    "note": "Longer formal contract-style text with multiple entities of each type",
+    "system": "Extract <address>, <company_name>, <email_address>, <human_name>, <phone_number>",
+    "input": "第1条 本契約は、甲である合同会社ひかりソフトウェア（代表取締役 小林正樹、所在地 大阪府大阪市北区梅田1-1-1 グランフロント大阪タワーB 20階）と、乙である個人事業主 井上彩花（連絡先 inoue.ayaka@hikari-soft.jp、電話 06-6312-0000）との間で締結する。緊急連絡先は乙の携帯 080-1111-2222 とする。",
+    "expected": {
+      "address": ["大阪府大阪市北区梅田1-1-1 グランフロント大阪タワーB 20階"],
+      "company_name": ["合同会社ひかりソフトウェア"],
+      "email_address": ["inoue.ayaka@hikari-soft.jp"],
+      "human_name": ["小林正樹", "井上彩花"],
+      "phone_number": ["06-6312-0000", "080-1111-2222"]
+    }
+  },
+  {
+    "id": "10_english_mixed",
+    "note": "Japanese-English mixed text (known weak spot: Latin token adjacent to kanji)",
+    "system": "Extract <address>, <company_name>, <email_address>, <human_name>, <phone_number>",
+    "input": "Dear Mr. James Carter, 弊社 Globex Japan株式会社 の山田です。お問い合わせは jcarter@globex.com または +1-415-555-0199 まで。住所は 1 Market St, San Francisco です。",
+    "expected": {
+      "address": ["1 Market St, San Francisco"],
+      "company_name": ["Globex Japan株式会社"],
+      "email_address": ["jcarter@globex.com"],
+      "human_name": ["James Carter", "山田"],
+      "phone_number": ["+1-415-555-0199"]
+    }
+  },
+  {
+    "id": "E1_underscore_email_selective",
+    "note": "Email with underscore, selective prompt (known weak spot)",
+    "system": "Extract <email_address>",
+    "input": "メールは watanabe_shota@example.com です。",
+    "expected": {
+      "email_address": ["watanabe_shota@example.com"]
+    }
+  },
+  {
+    "id": "E2_dotted_email_selective",
+    "note": "Email with dot in local part, selective prompt (known weak spot)",
+    "system": "Extract <email_address>",
+    "input": "メールは watanabe.shota@example.com です。",
+    "expected": {
+      "email_address": ["watanabe.shota@example.com"]
+    }
+  },
+  {
+    "id": "E3_two_similar_emails_selective",
+    "note": "Two near-duplicate emails, selective prompt",
+    "system": "Extract <email_address>",
+    "input": "連絡先メール watanabe_shota@example.com、予備 watanabe.shota@example.com。",
+    "expected": {
+      "email_address": ["watanabe_shota@example.com", "watanabe.shota@example.com"]
+    }
+  },
+  {
+    "id": "E4_plain_email_selective",
+    "note": "Plain simple email, selective prompt (control; reveals @example.com truncation)",
+    "system": "Extract <email_address>",
+    "input": "メールは tanaka@example.com です。",
+    "expected": {
+      "email_address": ["tanaka@example.com"]
+    }
+  },
+  {
+    "id": "L1_latin_brand_mixed",
+    "note": "Latin brand name adjacent to kanji, selective prompt (known weak spot)",
+    "system": "Extract <company_name>",
+    "input": "弊社 Globex Japan株式会社 です。",
+    "expected": {
+      "company_name": ["Globex Japan株式会社"]
+    }
+  },
+  {
+    "id": "L2_latin_brand_pure",
+    "note": "Pure Latin company name, selective prompt (control)",
+    "system": "Extract <company_name>",
+    "input": "We are Globex Corporation, a global company.",
+    "expected": {
+      "company_name": ["Globex Corporation"]
+    }
+  }
+]

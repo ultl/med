@@ -1,0 +1,16 @@
+# Python 3.12 venv (created with: uv venv --python 3.12 .venv)
+
+# Classifier (openai/privacy-filter) via ONNX Runtime -- no torch needed
+onnxruntime>=1.18
+huggingface_hub>=0.25
+numpy>=1.26
+transformers>=5.12     # tokenizer + config only (AutoTokenizer / AutoConfig)
+
+# Synthetic data generator
+faker>=40
+
+# --- served separately (not pip deps) ---
+# Generative models on vLLM (GPU server):  pip install vllm
+#   vllm serve Qwen/Qwen3-8B
+#   vllm serve LiquidAI/LFM2-350M-PII-Extract-JP
+# privacy-filter ONNX weights download from HF on first run (openai/privacy-filter)
