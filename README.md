@@ -59,9 +59,12 @@ Categories a model has no type for are reported as **coverage gaps**, not penali
 ## Setup
 
 ```bash
-# Python env (uv recommended)
+# Python env -- pick ONE:
+# (a) uv (fast, PyPI-only; good on the local CPU box)
 uv venv --python 3.12 .venv
 uv pip install --python .venv -r requirements.txt
+# (b) micromamba (conda-forge; better on the GPU server for the CUDA/vLLM stack)
+micromamba create -f environment.yml -y && micromamba activate pii-harness
 
 # Generative extractor A (LFM2) + generator (Qwen3) on a GPU server via vLLM:
 pip install vllm

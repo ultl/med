@@ -1,0 +1,20 @@
+# micromamba / conda env for the PII harness (CPU side: extractors + generator client).
+#   micromamba create -f environment.yml -y
+#   micromamba activate pii-harness
+#
+# transformers is under pip: on purpose -- conda-forge's build can pull in PyTorch,
+# but this harness is torch-free (privacy-filter runs on ONNX Runtime).
+name: pii-harness
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - numpy>=1.26
+  - onnxruntime>=1.18          # CPU build; classifier inference
+  - huggingface_hub>=0.25
+  - faker>=40
+  - pip:
+      - transformers>=5.12     # AutoTokenizer / AutoConfig only (no torch)
+      # vLLM is GPU-server only -- install there, not in the CPU env:
+      #   micromamba run -n pii-harness pip install vllm
