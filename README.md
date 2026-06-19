@@ -72,12 +72,12 @@ micromamba create -f environment.yml -y && micromamba activate pii-harness
 #
 # (i) SINGLE GPU SERVER: extend pii-harness in place (no second env)
 micromamba install -n pii-harness -c conda-forge uv "cuda-version=12.4"
-micromamba run -n pii-harness uv pip install vllm --torch-backend=cu124   # match the 12.4 driver
+micromamba run -n pii-harness uv pip install vllm --torch-backend=cu128   # any cu12x; NOT cu130
 #
 # (ii) SEPARATE GPU ENV: use when you also create envs on macOS (the cuda-version pin
 #      cannot solve on osx-arm64) or want the classifier deployable standalone on CPU
 micromamba create -f environment-gpu.yml -y && micromamba activate pii-vllm-gpu
-uv pip install vllm --torch-backend=cu124
+uv pip install vllm --torch-backend=cu128
 
 # then serve (either env):
 vllm serve LiquidAI/LFM2-350M-PII-Extract-JP --port 8001    # extractor
@@ -86,17 +86,20 @@ vllm serve Qwen/Qwen3-8B --port 8000                        # generator
 # Extractor B (privacy-filter): q4f16 ONNX downloads from HF on first run (cached)
 ```
 
-> **GPU/CUDA note:** if `nvidia-smi` shows CUDA 12.4 (`12040`), pin the torch backend
-> **explicitly** to `cu124` as above. Do **not** use `--torch-backend=auto` here — if it can't
-> read the driver at install time it falls back to the ecosystem default (now **`cu130`**, CUDA
-> 13), which then fails at import with `ImportError: libcudart.so.13`. A plain `pip install vllm`
-> has the same problem.
-> - If a given vLLM release ships no `cu124` wheel, use `--torch-backend=cu126` (a 12.6 runtime
->   still runs on a 12.4 driver via CUDA minor-version compatibility). Never `cu130` on this driver.
-> - On a torch↔vLLM ABI mismatch, pin an older vLLM line: `uv pip install "vllm==0.6.*" --torch-backend=cu124`.
-> - To check what got installed: `python -c "import torch; print(torch.version.cuda, torch.cuda.is_available())"`
->   (want `12.4`/`12.6` and `True`). Reinstall cleanly with `uv pip uninstall vllm torch` first.
-> - Alternatively, upgrade the NVIDIA driver to R580+ (CUDA 13) and the default `cu130` build works unpinned.
+> **GPU/CUDA note (driver = CUDA 12.4, `12040`):** the rule is **"any cu12x build, never cu13x."**
+> A CUDA-12 runtime (cu121/cu126/cu128/cu129) runs on a 12.4 driver via CUDA **minor-version
+> compatibility** (driver ≥ R525). CUDA 13 (`cu130`) does **not** — different major version, needs
+> driver R580+.
+> - Do **not** use `--torch-backend=auto`: if it can't read the driver at install time it falls
+>   back to the ecosystem default (now **`cu130`**), which fails at import with `ImportError:
+>   libcudart.so.13`. A plain `pip install vllm` has the same problem.
+> - Modern torch dropped `cu124` wheels, so `--torch-backend=cu124` resolves to a nearby cu12x
+>   (e.g. **`cu129`**) — that's expected and **fine** on a 12.4 driver. Pin `cu128` (broad wheel
+>   coverage) or `cu126`; don't worry which cu12x you land on.
+> - Verify: `python -c "import torch; print(torch.version.cuda, torch.cuda.is_available())"` →
+>   want a `12.x` and `True`. Reinstall cleanly with `uv pip uninstall vllm torch` first if needed.
+> - Still `False`? Pin an older vLLM with low-CUDA wheels (`uv pip install "vllm==0.6.*"
+>   --torch-backend=cu121`) or upgrade the driver to R580+ (then default `cu130` works unpinned).
 >
 > **One env or two?** Path (i) merges everything into `pii-harness` — simplest on a single
 > GPU box. Path (ii) keeps a separate env — required if you also build envs on macOS (no CUDA

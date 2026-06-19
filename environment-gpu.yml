@@ -4,15 +4,17 @@
 # Create + install vLLM with a DRIVER-MATCHED torch:
 #   micromamba create -f environment-gpu.yml -y
 #   micromamba activate pii-vllm-gpu
-#   uv pip install vllm --torch-backend=cu124    # PIN EXPLICITLY to the 12.4 driver
+#   uv pip install vllm --torch-backend=cu128    # any cu12x build; NEVER cu130
 #
-# Do NOT use --torch-backend=auto: if it can't read the driver at install time it falls back
-# to the ecosystem default (now cu130 = CUDA 13), which fails at import with
-# "ImportError: libcudart.so.13" because the 12.4 driver has no CUDA 13 runtime.
-#   - no cu124 wheel for that vLLM release? use --torch-backend=cu126 (runs on a 12.4 driver
-#     via CUDA minor-version compatibility). Never cu130 on this driver.
-#   - torch<->vLLM ABI mismatch? pin an older line: uv pip install "vllm==0.6.*" --torch-backend=cu124
+# Rule for a CUDA 12.4 driver: "any cu12x, never cu13x". A CUDA-12 runtime (cu121/cu126/cu128/
+# cu129) runs on a 12.4 driver via CUDA minor-version compatibility (driver >= R525). CUDA 13
+# (cu130) does NOT -> "ImportError: libcudart.so.13" (needs driver R580+).
+#   - Do NOT use --torch-backend=auto: it falls back to the default (cu130) if it can't read
+#     the driver at install time.
+#   - Modern torch dropped cu124 wheels, so cu124 resolves to a nearby cu12x (e.g. cu129) --
+#     that's expected and fine. Pin cu128 (broad coverage) or cu126.
 #   - verify: python -c "import torch; print(torch.version.cuda, torch.cuda.is_available())"
+#   - still False? older vLLM: uv pip install "vllm==0.6.*" --torch-backend=cu121, or upgrade driver.
 #
 # We deliberately do NOT install pytorch via conda here, to avoid a double-torch conflict;
 # vLLM+torch are installed together by uv with the cu124 backend.
