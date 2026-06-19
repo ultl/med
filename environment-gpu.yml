@@ -1,0 +1,24 @@
+# GPU-server env: vLLM serving the generative models (Qwen3-8B + LFM2).
+# Sized for a CUDA 12.4 driver (nvidia-smi shows "CUDA Version: 12.4", i.e. 12040).
+#
+# Create + install vLLM with a DRIVER-MATCHED torch:
+#   micromamba create -f environment-gpu.yml -y
+#   micromamba activate pii-vllm-gpu
+#   uv pip install vllm --torch-backend=auto     # auto-detects the 12.4 driver -> cu124 torch
+#                                                # (or be explicit: --torch-backend=cu124)
+#
+# Why uv --torch-backend:  a plain `pip install vllm` pulls a cu128-built torch, which
+# fails on a 12.4 driver ("CUDA driver version is insufficient for CUDA runtime version").
+# Letting vLLM+torch be installed together with a cu124 backend keeps everything aligned;
+# we deliberately do NOT install pytorch via conda here, to avoid a double-torch conflict.
+#
+# Serve (two endpoints):
+#   vllm serve LiquidAI/LFM2-350M-PII-Extract-JP --port 8001
+#   vllm serve Qwen/Qwen3-8B --port 8000
+name: pii-vllm-gpu
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - cuda-version=12.4     # pin CUDA runtime to the driver's ceiling
+  - uv                    # installs vLLM + a driver-matched torch wheel

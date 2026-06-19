@@ -66,13 +66,21 @@ uv pip install --python .venv -r requirements.txt
 # (b) micromamba (conda-forge; better on the GPU server for the CUDA/vLLM stack)
 micromamba create -f environment.yml -y && micromamba activate pii-harness
 
-# Generative extractor A (LFM2) + generator (Qwen3) on a GPU server via vLLM:
-pip install vllm
+# Generative extractor A (LFM2) + generator (Qwen3) on a GPU server via vLLM.
+# Use the pinned GPU env (CUDA 12.4 driver -> driver-matched torch):
+micromamba create -f environment-gpu.yml -y && micromamba activate pii-vllm-gpu
+uv pip install vllm --torch-backend=auto                    # auto-detects driver CUDA
 vllm serve LiquidAI/LFM2-350M-PII-Extract-JP --port 8001    # extractor
 vllm serve Qwen/Qwen3-8B --port 8000                        # generator
 
 # Extractor B (privacy-filter): q4f16 ONNX downloads from HF on first run (cached)
 ```
+
+> **GPU/CUDA note:** if `nvidia-smi` shows CUDA 12.4 (`12040`), a plain `pip install vllm`
+> pulls a cu128 torch and fails with *"CUDA driver version is insufficient for CUDA runtime
+> version"*. The `environment-gpu.yml` + `uv pip install vllm --torch-backend=auto` flow above
+> installs a **driver-matched (cu124)** torch instead. Alternatively, upgrade the NVIDIA driver
+> to R570+ (supports CUDA 12.8) and any modern vLLM works unpinned.
 
 > No GPU on hand? Point `LFM2_BASE_URL` at ollama's OpenAI endpoint instead:
 > `ollama pull hf.co/LiquidAI/LFM2-350M-PII-Extract-JP-GGUF:F16` then set
