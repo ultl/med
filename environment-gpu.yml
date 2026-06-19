@@ -4,13 +4,18 @@
 # Create + install vLLM with a DRIVER-MATCHED torch:
 #   micromamba create -f environment-gpu.yml -y
 #   micromamba activate pii-vllm-gpu
-#   uv pip install vllm --torch-backend=auto     # auto-detects the 12.4 driver -> cu124 torch
-#                                                # (or be explicit: --torch-backend=cu124)
+#   uv pip install vllm --torch-backend=cu124    # PIN EXPLICITLY to the 12.4 driver
 #
-# Why uv --torch-backend:  a plain `pip install vllm` pulls a cu128-built torch, which
-# fails on a 12.4 driver ("CUDA driver version is insufficient for CUDA runtime version").
-# Letting vLLM+torch be installed together with a cu124 backend keeps everything aligned;
-# we deliberately do NOT install pytorch via conda here, to avoid a double-torch conflict.
+# Do NOT use --torch-backend=auto: if it can't read the driver at install time it falls back
+# to the ecosystem default (now cu130 = CUDA 13), which fails at import with
+# "ImportError: libcudart.so.13" because the 12.4 driver has no CUDA 13 runtime.
+#   - no cu124 wheel for that vLLM release? use --torch-backend=cu126 (runs on a 12.4 driver
+#     via CUDA minor-version compatibility). Never cu130 on this driver.
+#   - torch<->vLLM ABI mismatch? pin an older line: uv pip install "vllm==0.6.*" --torch-backend=cu124
+#   - verify: python -c "import torch; print(torch.version.cuda, torch.cuda.is_available())"
+#
+# We deliberately do NOT install pytorch via conda here, to avoid a double-torch conflict;
+# vLLM+torch are installed together by uv with the cu124 backend.
 #
 # Serve (two endpoints):
 #   vllm serve LiquidAI/LFM2-350M-PII-Extract-JP --port 8001
