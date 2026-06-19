@@ -72,12 +72,21 @@ micromamba create -f environment.yml -y && micromamba activate pii-harness
 #
 # (i) SINGLE GPU SERVER: extend pii-harness in place (no second env)
 micromamba install -n pii-harness -c conda-forge uv "cuda-version=12.4"
-micromamba run -n pii-harness uv pip install vllm --torch-backend=cu128   # any cu12x; NOT cu130
+#   -- then install vLLM's CUDA 12.8 wheel (see GPU note below) --
 #
 # (ii) SEPARATE GPU ENV: use when you also create envs on macOS (the cuda-version pin
 #      cannot solve on osx-arm64) or want the classifier deployable standalone on CPU
 micromamba create -f environment-gpu.yml -y && micromamba activate pii-vllm-gpu
-uv pip install vllm --torch-backend=cu128
+
+# Install vLLM's CUDA 12.8 variant (works on a 12.4 driver; latest vLLM, no downgrade).
+# IMPORTANT: --torch-backend only sets the *torch* CUDA build, NOT vLLM's own compiled CUDA.
+# vLLM's default wheel is now CUDA 13 -> "ImportError: libcudart.so.13" on a 12.x driver.
+# Pin vLLM's cu128 wheel explicitly instead:
+VLLM_VERSION=$(curl -s https://api.github.com/repos/vllm-project/vllm/releases/latest | jq -r .tag_name | sed 's/^v//')
+ARCH=$(uname -m)   # x86_64 or aarch64
+uv pip install \
+  "https://github.com/vllm-project/vllm/releases/download/v${VLLM_VERSION}/vllm-${VLLM_VERSION}+cu128-cp38-abi3-manylinux_2_35_${ARCH}.whl" \
+  --extra-index-url https://download.pytorch.org/whl/cu128
 
 # then serve (either env):
 vllm serve LiquidAI/LFM2-350M-PII-Extract-JP --port 8001    # extractor
@@ -86,20 +95,18 @@ vllm serve Qwen/Qwen3-8B --port 8000                        # generator
 # Extractor B (privacy-filter): q4f16 ONNX downloads from HF on first run (cached)
 ```
 
-> **GPU/CUDA note (driver = CUDA 12.4, `12040`):** the rule is **"any cu12x build, never cu13x."**
-> A CUDA-12 runtime (cu121/cu126/cu128/cu129) runs on a 12.4 driver via CUDA **minor-version
-> compatibility** (driver ≥ R525). CUDA 13 (`cu130`) does **not** — different major version, needs
-> driver R580+.
-> - Do **not** use `--torch-backend=auto`: if it can't read the driver at install time it falls
->   back to the ecosystem default (now **`cu130`**), which fails at import with `ImportError:
->   libcudart.so.13`. A plain `pip install vllm` has the same problem.
-> - Modern torch dropped `cu124` wheels, so `--torch-backend=cu124` resolves to a nearby cu12x
->   (e.g. **`cu129`**) — that's expected and **fine** on a 12.4 driver. Pin `cu128` (broad wheel
->   coverage) or `cu126`; don't worry which cu12x you land on.
-> - Verify: `python -c "import torch; print(torch.version.cuda, torch.cuda.is_available())"` →
->   want a `12.x` and `True`. Reinstall cleanly with `uv pip uninstall vllm torch` first if needed.
-> - Still `False`? Pin an older vLLM with low-CUDA wheels (`uv pip install "vllm==0.6.*"
->   --torch-backend=cu121`) or upgrade the driver to R580+ (then default `cu130` works unpinned).
+> **GPU/CUDA note (driver = CUDA 12.4, `12040`).** vLLM ships a compiled CUDA kernel, so **the
+> vLLM wheel's CUDA version matters as much as torch's** — and `--torch-backend` only controls
+> torch. vLLM's *default* wheel is now CUDA 13 (`cu130`), which fails on a 12.x driver with
+> `ImportError: libcudart.so.13`. Fix by installing vLLM's **`cu128`** wheel explicitly (command
+> above): CUDA 12.8 → `libcudart.so.12` → runs on a 12.4 driver via CUDA **minor-version
+> compatibility** (driver ≥ R525). vLLM publishes `cu128`/`cu129`/`cu130` wheels per release, so
+> you keep the **latest** vLLM — no version downgrade needed.
+> - Verify BOTH import: `python -c "import vllm, torch; print(torch.version.cuda, torch.cuda.is_available())"`
+>   → want a `12.x` and `True`, with no `libcudart.so.13`.
+> - `--torch-backend=cu128` / `auto` alone is **not** enough — it leaves vLLM on its cu130 wheel.
+> - Sustainable alternative: upgrade the NVIDIA driver to **R580+** (CUDA 13); then the default
+>   `pip install vllm` works unpinned, since vLLM's default is now CUDA 13.
 >
 > **One env or two?** Path (i) merges everything into `pii-harness` — simplest on a single
 > GPU box. Path (ii) keeps a separate env — required if you also build envs on macOS (no CUDA
