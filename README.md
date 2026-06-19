@@ -52,7 +52,9 @@ Categories a model has no type for are reported as **coverage gaps**, not penali
 │   ├── rehab_dataset.jsonl     {id, input, pii} per record
 │   ├── rehab_records.txt       human-readable
 │   └── logs/                   timestamped run logs + *_history.jsonl
-├── requirements.txt
+├── requirements.txt           uv / pip deps (CPU harness)
+├── environment.yml            micromamba env (CPU harness, torch-free)
+├── environment-gpu.yml        micromamba env for the GPU server (vLLM, CUDA 12.4)
 └── README.md
 ```
 
@@ -66,10 +68,18 @@ uv pip install --python .venv -r requirements.txt
 # (b) micromamba (conda-forge; better on the GPU server for the CUDA/vLLM stack)
 micromamba create -f environment.yml -y && micromamba activate pii-harness
 
-# Generative extractor A (LFM2) + generator (Qwen3) on a GPU server via vLLM.
-# Use the pinned GPU env (CUDA 12.4 driver -> driver-matched torch):
+# Generative extractor A (LFM2) + generator (Qwen3) on a GPU server via vLLM -- pick ONE:
+#
+# (i) SINGLE GPU SERVER: extend pii-harness in place (no second env)
+micromamba install -n pii-harness -c conda-forge uv "cuda-version=12.4"
+micromamba run -n pii-harness uv pip install vllm --torch-backend=auto
+#
+# (ii) SEPARATE GPU ENV: use when you also create envs on macOS (the cuda-version pin
+#      cannot solve on osx-arm64) or want the classifier deployable standalone on CPU
 micromamba create -f environment-gpu.yml -y && micromamba activate pii-vllm-gpu
-uv pip install vllm --torch-backend=auto                    # auto-detects driver CUDA
+uv pip install vllm --torch-backend=auto
+
+# then serve (either env):
 vllm serve LiquidAI/LFM2-350M-PII-Extract-JP --port 8001    # extractor
 vllm serve Qwen/Qwen3-8B --port 8000                        # generator
 
@@ -78,9 +88,13 @@ vllm serve Qwen/Qwen3-8B --port 8000                        # generator
 
 > **GPU/CUDA note:** if `nvidia-smi` shows CUDA 12.4 (`12040`), a plain `pip install vllm`
 > pulls a cu128 torch and fails with *"CUDA driver version is insufficient for CUDA runtime
-> version"*. The `environment-gpu.yml` + `uv pip install vllm --torch-backend=auto` flow above
-> installs a **driver-matched (cu124)** torch instead. Alternatively, upgrade the NVIDIA driver
-> to R570+ (supports CUDA 12.8) and any modern vLLM works unpinned.
+> version"*. The `uv pip install vllm --torch-backend=auto` flow above installs a
+> **driver-matched (cu124)** torch instead. Alternatively, upgrade the NVIDIA driver to
+> R570+ (supports CUDA 12.8) and any modern vLLM works unpinned.
+>
+> **One env or two?** Path (i) merges everything into `pii-harness` — simplest on a single
+> GPU box. Path (ii) keeps a separate env — required if you also build envs on macOS (no CUDA
+> there) or want to deploy the ONNX classifier on a CPU/Lambda box without the torch+CUDA stack.
 
 > No GPU on hand? Point `LFM2_BASE_URL` at ollama's OpenAI endpoint instead:
 > `ollama pull hf.co/LiquidAI/LFM2-350M-PII-Extract-JP-GGUF:F16` then set
